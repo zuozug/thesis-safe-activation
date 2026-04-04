@@ -77,3 +77,50 @@ OK
 
 实验 0 通过。
 项目当前已完成基础联调与环境检查，可以进入下一步正式实验，即实验 1：Baseline CNN。
+
+## 实验 1：Baseline CNN
+
+### 实验目的
+使用原始激活函数的基线 CNN 在 MNIST 数据集上进行训练与测试，建立后续 ApproxReLU、ApproxGELU 和 ApproxSigmoid 模型的对照基线。重点记录验证准确率、测试准确率、损失、训练时间和推理时间，为后续近似激活函数模型的性能比较提供参考。
+
+### 运行命令
+```bash
+py -m experiments.train_baseline --device cpu --hidden-activation relu --batch-size 128 --epochs 8 --lr 1e-3 --val-ratio 0.1 --num-workers 0 --seed 42 --output-dir outputs/logs/exp1_baseline
+````
+
+### 配置
+
+* 数据集：MNIST
+* 模型：Baseline CNN
+* 隐藏层激活函数：ReLU
+* batch size：128
+* epochs：8
+* learning rate：1e-3
+* val ratio：0.1
+* num_workers：0
+* seed：42
+* device：cpu
+
+### 结果
+
+* best val accuracy：0.9888333333333333
+* final val loss：0.04454690021773179
+* final val accuracy：0.9888333333333333
+* final test loss：0.03660337060673046
+* final test accuracy：0.9884
+* total training seconds：70.65932109998539
+* average epoch seconds：8.827397374960128
+* inference seconds per batch：0.003248864982742816
+* inference seconds per sample：0.00002538175767767825
+
+### 分析
+
+本实验中，Baseline CNN 在 MNIST 数据集上表现出稳定的收敛趋势。随着训练轮数增加，训练损失由 0.3436 持续下降至 0.0197，验证损失由 0.1208 下降至 0.0445，验证准确率由 0.9648 提升至 0.9888，说明模型训练过程平稳且有效。
+
+最终测试准确率达到 0.9884，与最佳验证准确率 0.9888 非常接近，表明模型具有较好的泛化能力，没有出现明显过拟合现象。该结果说明当前基线模型已经能够在 MNIST 上取得较高分类性能，可以作为后续近似激活函数模型实验的可靠对照基线。
+
+在效率方面，总训练时间约为 70.66 秒，平均每轮训练约 8.83 秒；推理阶段平均每个 batch 用时约 0.00325 秒，每个样本平均推理时间约 2.54e-05 秒。这些指标将作为后续 ApproxReLU、ApproxGELU 和 ApproxSigmoid 实验的时间比较基准。
+
+### 结论
+
+实验 1 顺利完成，Baseline CNN 基线已建立。该模型在当前设置下取得了较高的测试准确率和较稳定的训练表现，能够作为后续近似激活函数模型对照实验的基准模型。
