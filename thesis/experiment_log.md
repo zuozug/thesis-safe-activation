@@ -124,3 +124,55 @@ py -m experiments.train_baseline --device cpu --hidden-activation relu --batch-s
 ### 结论
 
 实验 1 顺利完成，Baseline CNN 基线已建立。该模型在当前设置下取得了较高的测试准确率和较稳定的训练表现，能够作为后续近似激活函数模型对照实验的基准模型。
+
+## 实验 2：ApproxReLU CNN
+
+### 实验目的
+在 MNIST 数据集上训练采用 ReLU 多项式近似替代的 CNN 模型，验证 ApproxReLU 对模型精度、收敛情况、训练时间和推理时间的影响，并与 Baseline CNN 进行对照分析。
+
+### 运行命令
+```bash
+py -m experiments.train_approx_relu --device cpu --batch-size 128 --epochs 8 --lr 1e-3 --val-ratio 0.1 --num-workers 0 --seed 42 --degree 4 --interval-left -3 --interval-right 3 --method chebyshev --output-dir outputs/logs/exp2_approx_relu
+````
+
+### 配置
+
+* 数据集：MNIST
+* 模型：ApproxReLU CNN
+* 近似目标函数：ReLU
+* 近似方法：Chebyshev
+* 多项式阶数：4
+* 逼近区间：[-3, 3]
+* batch size：128
+* epochs：8
+* learning rate：1e-3
+* val ratio：0.1
+* num_workers：0
+* seed：42
+* device：cpu
+
+### 结果
+
+* best val accuracy：0.9888333333333333
+* final val loss：0.03839651202162107
+* final val accuracy：0.9888333333333333
+* final test loss：0.030585972418589517
+* final test accuracy：0.9903
+* total training seconds：118.1076330000069
+* average epoch seconds：14.761183562513907
+* inference seconds per batch：0.006234150019008666
+* inference seconds per sample：0.000048704297023505204
+
+### 分析
+
+ApproxReLU 模型在本次实验中表现出稳定的收敛趋势。随着训练轮数增加，训练损失由 0.4274 持续下降至 0.0142，验证损失由 0.1117 下降至 0.0384，验证准确率最高达到 0.9888，说明模型训练过程平稳有效。
+
+与 Baseline CNN 对比可知，ApproxReLU 的最佳验证准确率与基线模型完全一致，测试准确率由 0.9884 提升至 0.9903，表明在当前 4 阶、区间 [-3, 3]、Chebyshev 近似配置下，ReLU 多项式替代并未造成模型精度下降，反而在本次实验中取得了略优的测试表现。同时，ApproxReLU 的验证损失和测试损失均低于 Baseline，说明该近似替代在保持分类性能方面具有较好的可行性。
+
+但在效率方面，ApproxReLU 的训练和推理时间明显高于 Baseline：总训练时间由 70.66 秒增加至 118.11 秒，平均每轮训练时间由 8.83 秒增加至 14.76 秒，推理每 batch 时间由 0.00325 秒增加至 0.00623 秒。这说明在普通明文 CPU 环境下，多项式近似替代并不会直接带来速度优势，反而会引入一定的时间开销。
+
+综合来看，ApproxReLU 的主要价值不在于当前明文环境下的加速，而在于将原本含比较操作的 ReLU 转化为仅含加法和乘法的多项式表达形式，从而为未来接入 HE/MPC 等隐私计算场景提供结构上的兼容性基础。
+
+### 结论
+
+实验 2 顺利完成。结果表明，在 4 阶、区间 [-3, 3]、Chebyshev 配置下，ApproxReLU 能够在 MNIST 上保持与 Baseline CNN 相当的验证精度，并取得略高的测试准确率，说明 ReLU 多项式近似替代方案具有良好的可行性；但其代价是在普通 CPU 环境下训练与推理时间明显增加。
