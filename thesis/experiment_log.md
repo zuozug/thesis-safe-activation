@@ -230,3 +230,56 @@ ApproxGELU 模型在本次实验中表现出稳定的收敛趋势。随着训练
 ### 结论
 
 实验 3 顺利完成。结果表明，在 5 阶、区间 [-3, 3]、Chebyshev 配置下，ApproxGELU 能够在 MNIST 上保持优良的分类性能，并取得比 Baseline 更高的验证与测试精度；同时，其整体表现与 ApproxReLU 非常接近，且在损失和部分时间指标上更均衡，说明 GELU 多项式近似替代方案具有良好的可行性。
+
+## 实验 4：ApproxSigmoid CNN
+
+### 实验目的
+在 MNIST 数据集上训练采用 Sigmoid 多项式近似替代的 CNN 模型，作为平滑激活函数的补充实验，验证 ApproxSigmoid 对模型精度、收敛情况、训练时间和推理时间的影响，并与 Baseline CNN、ApproxReLU CNN 和 ApproxGELU CNN 进行对照分析。
+
+### 运行命令
+```bash
+py -m experiments.train_approx_sigmoid --device cpu --batch-size 128 --epochs 8 --lr 1e-3 --val-ratio 0.1 --num-workers 0 --seed 42 --degree 5 --interval-left -4 --interval-right 4 --method least_squares --output-dir outputs/logs/exp4_approx_sigmoid
+````
+
+### 配置
+
+* 数据集：MNIST
+* 模型：ApproxSigmoid CNN
+* 近似目标函数：Sigmoid
+* 近似方法：least_squares
+* 多项式阶数：5
+* 逼近区间：[-4, 4]
+* batch size：128
+* epochs：8
+* learning rate：1e-3
+* val ratio：0.1
+* num_workers：0
+* seed：42
+* device：cpu
+
+### 结果
+
+* best val accuracy：0.9751666666666666
+* final val loss：0.08691618053118388
+* final val accuracy：0.9751666666666666
+* final test loss：0.06996037070900202
+* final test accuracy：0.9784
+* total training seconds：117.49028400005773
+* average epoch seconds：14.682437575043878
+* inference seconds per batch：0.006527165020816028
+* inference seconds per sample：0.00005099347672512522
+
+### 分析
+
+ApproxSigmoid 模型在本次实验中能够稳定收敛。随着训练轮数增加，训练损失由 1.4958 下降至 0.0795，验证损失由 0.4986 下降至 0.0869，验证准确率由 0.8550 提升至 0.9752，说明该模型具备可训练性和基本可用性。
+
+但与 Baseline、ApproxReLU 和 ApproxGELU 对比，ApproxSigmoid 的精度和损失指标均明显偏弱。其测试准确率为 0.9784，低于 Baseline 的 0.9884，也低于 ApproxReLU 的 0.9903 和 ApproxGELU 的 0.9901；同时，其验证损失和测试损失也明显更高。这表明在当前 5 阶、区间 [-4, 4]、least_squares 配置下，Sigmoid 多项式近似虽然可行，但分类性能不如 ReLU 和 GELU 的近似替代方案。
+
+在效率方面，ApproxSigmoid 的训练和推理时间并未优于其他近似模型，总训练时间为 117.49 秒，平均每轮约 14.68 秒，推理每 batch 时间约 0.00653 秒，均处于较高水平。说明该方案没有在当前明文 CPU 环境下体现出明显的效率优势。
+
+综合来看，ApproxSigmoid 的主要价值在于验证本项目模块对平滑激活函数的支持能力，并补充说明不同类型激活函数在多项式替代后的效果存在差异。其结果更适合作为补充实验，而不适合作为本课题的主推替代方案。
+
+### 结论
+
+实验 4 顺利完成。结果表明，ApproxSigmoid 能够在 MNIST 上完成训练并取得较高准确率，说明 Sigmoid 多项式近似替代方案具有基本可行性；但其综合性能明显弱于 ApproxReLU 和 ApproxGELU，因此更适合作为补充验证，而非主实验结论的核心支撑。
+
