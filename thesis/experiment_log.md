@@ -429,3 +429,94 @@ py -m experiments.run_ablation --device cpu --hidden-activation relu --batch-siz
 ### 结论
 
 实验 6 顺利完成。结果表明，ReLU 近似配置对模型性能具有显著影响。阶数方面，4 阶在精度与效率之间表现更均衡；区间方面，较小到中等区间优于过大区间，[-4, 4] 的表现最差。综合主实验和消融实验结果，本文后续将优先采用 4 阶、区间 [-3, 3] 的 ReLU Chebyshev 近似作为推荐配置。
+
+## 实验 7：GELU 消融
+
+### 实验目的
+对 GELU 多项式近似方案进行消融实验，比较不同多项式阶数和不同逼近区间对模型精度、损失、训练时间和推理时间的影响，为 GELU 近似配置的选择提供依据。
+
+### 运行命令
+```bash
+py -m experiments.run_ablation --device cpu --hidden-activation gelu --batch-size 128 --epochs 5 --lr 1e-3 --val-ratio 0.1 --num-workers 0 --seed 42 --output-dir outputs/logs/exp7_gelu_ablation
+````
+
+### 配置
+
+* 数据集：MNIST
+* 隐藏层近似函数：GELU
+* 近似方法：Chebyshev
+* 阶数消融：3 / 5 / 7（固定区间 [-3, 3]）
+* 区间消融：[-2, 2] / [-3, 3] / [-4, 4]（固定阶数 5）
+* batch size：128
+* epochs：5
+* learning rate：1e-3
+* val ratio：0.1
+* num_workers：0
+* seed：42
+* device：cpu
+
+### 结果
+
+#### 1. 阶数消融（固定区间 [-3, 3]）
+
+* degree=3：
+
+  * best val accuracy：0.984
+  * final test accuracy：0.9879
+  * final test loss：0.039579974035080526
+  * total training seconds：63.60020760004409
+  * inference seconds per batch：0.006114965013694018
+
+* degree=5：
+
+  * best val accuracy：0.9858333333333333
+  * final test accuracy：0.9887
+  * final test loss：0.03709790326282382
+  * total training seconds：74.21410190011375
+  * inference seconds per batch：0.006317099998705089
+
+* degree=7：
+
+  * best val accuracy：0.9878333333333333
+  * final test accuracy：0.9895
+  * final test loss：0.030530964553263037
+  * total training seconds：80.47101350012235
+  * inference seconds per batch：0.007352574984543026
+
+#### 2. 区间消融（固定阶数 5）
+
+* interval=[-2, 2]：
+
+  * best val accuracy：0.987
+  * final test accuracy：0.9888
+  * final test loss：0.033463824229314924
+  * total training seconds：74.60314229992218
+  * inference seconds per batch：0.00646213503787294
+
+* interval=[-3, 3]：
+
+  * best val accuracy：0.9873333333333333
+  * final test accuracy：0.9872
+  * final test loss：0.03681264373352751
+  * total training seconds：74.46044239983894
+  * inference seconds per batch：0.007042050012387335
+
+* interval=[-4, 4]：
+
+  * best val accuracy：0.9858333333333333
+  * final test accuracy：0.9865
+  * final test loss：0.039836033005081116
+  * total training seconds：80.00656259991229
+  * inference seconds per batch：0.006730349967256188
+
+### 分析
+
+在固定区间 [-3, 3] 下，随着 GELU 多项式阶数由 3 阶提升到 5 阶，再提升到 7 阶，模型的验证准确率和测试准确率持续上升，测试损失持续下降，说明高阶多项式近似能够更好地刻画 GELU 的复杂非线性特征。与此同时，训练时间和推理时间也随阶数增加而增加，表明 GELU 近似同样存在明显的精度—效率折中关系。其中，7 阶配置取得了最佳精度与最低测试损失，5 阶配置则在性能与计算代价之间更均衡。
+
+在固定 5 阶条件下，逼近区间对结果影响明显。区间 [-2, 2] 在测试集上取得最高准确率 0.9888 和最低测试损失 0.0335，且推理速度也最快，说明较小区间有助于提高多项式对主要输入分布范围的拟合质量；区间 [-3, 3] 的最佳验证准确率略高，但测试表现略弱于 [-2, 2]；而区间扩大到 [-4, 4] 后，验证与测试精度均下降，训练时间也明显增加，说明过大的逼近区间会削弱近似效果。
+
+综合来看，GELU 多项式近似同样具有明显的“精度—效率折中”特性。若更强调测试精度上限，可以考虑采用 7 阶、区间 [-3, 3] 的配置；若更重视综合均衡和测试表现，则 5 阶、区间 [-2, 2] 是更有吸引力的选择。
+
+### 结论
+
+实验 7 顺利完成。结果表明，GELU 近似配置对模型性能具有显著影响。阶数方面，7 阶取得最佳精度，但 5 阶更均衡；区间方面，较小区间优于过大区间，[-2, 2] 在当前 5 阶条件下取得了最佳测试表现。综合主实验与消融实验结果，本文将 5 阶、区间 [-3, 3] 作为主实验默认配置，同时将 5 阶、区间 [-2, 2] 视为值得进一步优化的方向。
