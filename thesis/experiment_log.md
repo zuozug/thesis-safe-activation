@@ -283,3 +283,58 @@ ApproxSigmoid 模型在本次实验中能够稳定收敛。随着训练轮数增
 
 实验 4 顺利完成。结果表明，ApproxSigmoid 能够在 MNIST 上完成训练并取得较高准确率，说明 Sigmoid 多项式近似替代方案具有基本可行性；但其综合性能明显弱于 ApproxReLU 和 ApproxGELU，因此更适合作为补充验证，而非主实验结论的核心支撑。
 
+## 实验 5：Softmax 输出层评估
+
+### 实验目的
+在已训练好的 Baseline CNN 输出 logits 上，对比精确 Softmax 与多项式近似 Softmax 的分类准确率、概率分布误差、概率和偏差以及数值稳定性，评估 Softmax 近似方案在本项目中的可行性。
+
+### 运行命令
+```bash
+py -m experiments.eval_softmax --device cpu --checkpoint-path outputs/logs/exp1_baseline/baseline_best.pt --hidden-activation relu --batch-size 256 --num-workers 0 --seed 42 --degree 3 --interval-left -4 --interval-right 4 --method exp_poly_norm --output-dir outputs/logs/exp5_softmax
+````
+
+### 配置
+
+* 数据集：MNIST 测试集
+* 基础模型：Baseline CNN
+* checkpoint：outputs/logs/exp1_baseline/baseline_best.pt
+* hidden activation：relu
+* Softmax 近似方法：exp_poly_norm
+* 多项式阶数：3
+* 逼近区间：[-4, 4]
+* batch size：256
+* num_workers：0
+* seed：42
+* device：cpu
+
+### 结果
+
+* exact accuracy：0.9884
+* approx accuracy：0.1019
+* accuracy drop：0.8865
+* probability MAE：0.17956968118667602
+* probability MSE：0.09166875093460083
+* probability max abs error：0.986300528049469
+* probability sum MAE：1.1535286903381348e-07
+* probability sum MSE：1.3784884345113824e-14
+* probability sum max abs error：3.5762786865234375e-07
+* invalid value count：0
+* is stable：true
+* exact softmax total seconds：0.001210999907925725
+* approx softmax total seconds：0.013698000460863113
+* exact softmax seconds per sample：1.210999907925725e-07
+* approx softmax seconds per sample：1.3698000460863113e-06
+
+### 分析
+
+本实验中，近似 Softmax 在数值稳定性方面表现正常。结果显示 invalid value count 为 0，is stable 为 true，且 probability sum MAE 仅为 1.15e-07，说明近似输出未出现 NaN 或 Inf，且各类别概率之和仍然非常接近 1。
+
+但在分类性能方面，当前近似方案表现很差。使用精确 Softmax 时，模型测试准确率为 0.9884；使用近似 Softmax 后，准确率下降至 0.1019，accuracy drop 高达 0.8865，已经接近十分类任务的随机猜测水平。同时，probability MAE、probability MSE 以及 probability max abs error 均较大，说明近似 Softmax 虽然保持了概率归一化形式，但未能较好保持原始概率分布与类别排序关系。
+
+在效率方面，近似 Softmax 也未体现优势。其总耗时和单样本耗时均明显高于精确 Softmax，说明在当前明文 CPU 环境下，该近似方案既未保持分类精度，也未带来时间收益。
+
+综合来看，本实验得到的是一个具有研究价值的负结果：当前 3 阶、区间 [-4, 4]、exp_poly_norm 配置下的 Softmax 近似方案具有数值稳定性，但不具备有效替代原始 Softmax 的能力。这也说明 Softmax 由于同时包含指数与归一化结构，其近似难度显著高于 ReLU、GELU 和 Sigmoid。
+
+### 结论
+
+实验 5 顺利完成。结果表明，当前 Softmax 多项式近似方案在数值上稳定、概率和接近 1，但分类性能严重下降，因此在本实验条件下不适合作为有效的 Softmax 替代方案。该结果更适合作为论文中关于“Softmax 近似难度较高”的补充证据。
