@@ -216,7 +216,7 @@ def measure_inference_time(
 
 
 def build_argparser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Train ApproxReLU CNN on MNIST.")
+    parser = argparse.ArgumentParser(description="Train ApproxGELU CNN on MNIST.")
     parser.add_argument("--data-dir", type=str, default="data")
     parser.add_argument("--output-dir", type=str, default="outputs/logs")
     parser.add_argument("--batch-size", type=int, default=128)
@@ -225,7 +225,7 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--val-ratio", type=float, default=0.1)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--degree", type=int, default=4)
+    parser.add_argument("--degree", type=int, default=5)
     parser.add_argument("--interval-left", type=float, default=-3.0)
     parser.add_argument("--interval-right", type=float, default=3.0)
     parser.add_argument("--method", type=str, default="chebyshev")
@@ -259,9 +259,9 @@ def main() -> None:
         seed=args.seed,
     )
 
-    print("Building ApproxReLU model...")
+    print("Building ApproxGELU model...")
     model = build_approx_cnn(
-        hidden_activation="relu",
+        hidden_activation="gelu",
         degree=args.degree,
         interval=interval,
         method=args.method,
@@ -279,7 +279,7 @@ def main() -> None:
     }
 
     best_val_accuracy = -1.0
-    best_model_path = output_dir / "approx_relu_best.pt"
+    best_model_path = output_dir / "approx_gelu_best.pt"
 
     total_train_start = time.perf_counter()
 
@@ -331,10 +331,10 @@ def main() -> None:
     inference_metrics = measure_inference_time(model, test_loader, device)
 
     result = {
-        "experiment_name": "train_approx_relu",
-        "model_name": "ApproxReLU CNN",
+        "experiment_name": "train_approx_gelu",
+        "model_name": "ApproxGELU CNN",
         "activation": {
-            "hidden_activation": "relu",
+            "hidden_activation": "gelu",
             "activation_mode": "approx",
             "degree": args.degree,
             "interval": [args.interval_left, args.interval_right],
@@ -367,7 +367,7 @@ def main() -> None:
         },
     }
 
-    metrics_path = output_dir / "train_approx_relu_metrics.json"
+    metrics_path = output_dir / "train_approx_gelu_metrics.json"
     save_json(result, metrics_path)
 
     print("\nTraining finished.")

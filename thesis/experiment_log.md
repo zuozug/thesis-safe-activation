@@ -176,3 +176,57 @@ ApproxReLU 模型在本次实验中表现出稳定的收敛趋势。随着训练
 ### 结论
 
 实验 2 顺利完成。结果表明，在 4 阶、区间 [-3, 3]、Chebyshev 配置下，ApproxReLU 能够在 MNIST 上保持与 Baseline CNN 相当的验证精度，并取得略高的测试准确率，说明 ReLU 多项式近似替代方案具有良好的可行性；但其代价是在普通 CPU 环境下训练与推理时间明显增加。
+
+## 实验 3：ApproxGELU CNN
+
+### 实验目的
+在 MNIST 数据集上训练采用 GELU 多项式近似替代的 CNN 模型，验证 ApproxGELU 对模型精度、收敛情况、训练时间和推理时间的影响，并与 Baseline CNN 及 ApproxReLU CNN 进行对照分析。
+
+### 运行命令
+```bash
+py -m experiments.train_approx_gelu --device cpu --batch-size 128 --epochs 8 --lr 1e-3 --val-ratio 0.1 --num-workers 0 --seed 42 --degree 5 --interval-left -3 --interval-right 3 --method chebyshev --output-dir outputs/logs/exp3_approx_gelu
+````
+
+### 配置
+
+* 数据集：MNIST
+* 模型：ApproxGELU CNN
+* 近似目标函数：GELU
+* 近似方法：Chebyshev
+* 多项式阶数：5
+* 逼近区间：[-3, 3]
+* batch size：128
+* epochs：8
+* learning rate：1e-3
+* val ratio：0.1
+* num_workers：0
+* seed：42
+* device：cpu
+
+### 结果
+
+* best val accuracy：0.9898333333333333
+* final val loss：0.03612672908604145
+* final val accuracy：0.9898333333333333
+* final test loss：0.028730415977025404
+* final test accuracy：0.9901
+* total training seconds：111.91607449995354
+* average epoch seconds：13.987715099967318
+* inference seconds per batch：0.005924535018857568
+* inference seconds per sample：0.00004628542983482475
+
+### 分析
+
+ApproxGELU 模型在本次实验中表现出稳定的收敛趋势。随着训练轮数增加，训练损失由 0.3328 持续下降至 0.0114，验证损失由 0.1037 下降至 0.0361，验证准确率最高达到 0.9898，说明模型训练过程平稳有效。
+
+与 Baseline CNN 对比可知，ApproxGELU 的最佳验证准确率由 0.9888 提升至 0.9898，测试准确率由 0.9884 提升至 0.9901；同时，其验证损失和测试损失均低于基线模型。这说明在当前 5 阶、区间 [-3, 3]、Chebyshev 近似配置下，GELU 多项式替代并未导致模型性能下降，反而取得了更低损失和略高精度。
+
+与 ApproxReLU 对比，ApproxGELU 的测试准确率略低 0.0002，但验证准确率更高，验证损失和测试损失也更低，说明其整体表现更加均衡。可以认为，ApproxGELU 和 ApproxReLU 在当前实验中的测试精度接近，但 ApproxGELU 在验证集表现和损失指标上更有优势。
+
+在效率方面，ApproxGELU 的训练和推理时间仍明显高于 Baseline，说明在普通明文 CPU 环境下，多项式近似替代不会直接带来速度提升；但与 ApproxReLU 相比，ApproxGELU 的总训练时间和推理时间略低，表明其在当前配置下具有更好的综合效率表现。
+
+综合来看，ApproxGELU 的主要价值在于将原本复杂的 GELU 激活转化为更适合 HE/MPC 场景的多项式形式，同时在明文实验中保持了较高精度和较低损失，具备较好的工程可行性。
+
+### 结论
+
+实验 3 顺利完成。结果表明，在 5 阶、区间 [-3, 3]、Chebyshev 配置下，ApproxGELU 能够在 MNIST 上保持优良的分类性能，并取得比 Baseline 更高的验证与测试精度；同时，其整体表现与 ApproxReLU 非常接近，且在损失和部分时间指标上更均衡，说明 GELU 多项式近似替代方案具有良好的可行性。
