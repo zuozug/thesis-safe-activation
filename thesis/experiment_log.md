@@ -338,3 +338,94 @@ py -m experiments.eval_softmax --device cpu --checkpoint-path outputs/logs/exp1_
 ### 结论
 
 实验 5 顺利完成。结果表明，当前 Softmax 多项式近似方案在数值上稳定、概率和接近 1，但分类性能严重下降，因此在本实验条件下不适合作为有效的 Softmax 替代方案。该结果更适合作为论文中关于“Softmax 近似难度较高”的补充证据。
+
+## 实验 6：ReLU 消融
+
+### 实验目的
+对 ReLU 多项式近似方案进行消融实验，比较不同多项式阶数和不同逼近区间对模型精度、损失、训练时间和推理时间的影响，为 ReLU 近似配置的选择提供依据。
+
+### 运行命令
+```bash
+py -m experiments.run_ablation --device cpu --hidden-activation relu --batch-size 128 --epochs 5 --lr 1e-3 --val-ratio 0.1 --num-workers 0 --seed 42 --output-dir outputs/logs/exp6_relu_ablation
+````
+
+### 配置
+
+* 数据集：MNIST
+* 隐藏层近似函数：ReLU
+* 近似方法：Chebyshev
+* 阶数消融：2 / 4 / 6（固定区间 [-3, 3]）
+* 区间消融：[-2, 2] / [-3, 3] / [-4, 4]（固定阶数 4）
+* batch size：128
+* epochs：5
+* learning rate：1e-3
+* val ratio：0.1
+* num_workers：0
+* seed：42
+* device：cpu
+
+### 结果
+
+#### 1. 阶数消融（固定区间 [-3, 3]）
+
+* degree=2：
+
+  * best val accuracy：0.9835
+  * final test accuracy：0.9867
+  * final test loss：0.04179073411840945
+  * total training seconds：61.184544299962
+  * inference seconds per batch：0.005125074996612966
+
+* degree=4：
+
+  * best val accuracy：0.9863333333333333
+  * final test accuracy：0.987
+  * final test loss：0.03908233933374286
+  * total training seconds：66.5906679998152
+  * inference seconds per batch：0.005959550000261516
+
+* degree=6：
+
+  * best val accuracy：0.986
+  * final test accuracy：0.988
+  * final test loss：0.03681513642184436
+  * total training seconds：94.33730349992402
+  * inference seconds per batch：0.006683695001993328
+
+#### 2. 区间消融（固定阶数 4）
+
+* interval=[-2, 2]：
+
+  * best val accuracy：0.9883333333333333
+  * final test accuracy：0.9895
+  * final test loss：0.03251980026997626
+  * total training seconds：67.780756900087
+  * inference seconds per batch：0.006446284987032413
+
+* interval=[-3, 3]：
+
+  * best val accuracy：0.989
+  * final test accuracy：0.9884
+  * final test loss：0.03486963073192164
+  * total training seconds：76.59119439986534
+  * inference seconds per batch：0.006121110008098185
+
+* interval=[-4, 4]：
+
+  * best val accuracy：0.9851666666666666
+  * final test accuracy：0.9859
+  * final test loss：0.043682854986190796
+  * total training seconds：81.92908070003614
+  * inference seconds per batch：0.006777865008916706
+
+### 分析
+
+在固定区间 [-3, 3] 下，随着多项式阶数从 2 阶提高到 4 阶，模型精度和损失指标均有所改善，说明适当提高阶数有助于提升 ReLU 近似质量。继续提升到 6 阶后，测试准确率进一步提高到 0.9880，测试损失也进一步下降，但训练时间和推理时间明显增加，说明高阶近似虽然能带来一定性能收益，但计算代价也显著上升。综合精度与效率，4 阶配置更均衡。
+
+在固定 4 阶条件下，逼近区间对结果影响明显。区间 [-2, 2] 在测试集上取得最高准确率 0.9895 和最低测试损失 0.0325，说明较小区间有助于提高局部逼近质量；区间 [-3, 3] 的最佳验证准确率最高，为 0.9890，整体表现也较稳定；而区间扩大到 [-4, 4] 后，验证与测试精度均下降，训练和推理时间也增加，说明过大的逼近区间会削弱近似效果。
+
+综合来看，ReLU 多项式近似存在明显的“精度—效率折中”关系：提高阶数能够增强表达能力，但时间代价上升；扩大区间并不一定有利，反而可能降低模型性能。因此，在当前实验条件下，4 阶、区间 [-3, 3] 是更均衡的默认配置，而若更强调测试集精度，也可以考虑区间 [-2, 2] 或更高阶配置。
+
+### 结论
+
+实验 6 顺利完成。结果表明，ReLU 近似配置对模型性能具有显著影响。阶数方面，4 阶在精度与效率之间表现更均衡；区间方面，较小到中等区间优于过大区间，[-4, 4] 的表现最差。综合主实验和消融实验结果，本文后续将优先采用 4 阶、区间 [-3, 3] 的 ReLU Chebyshev 近似作为推荐配置。
