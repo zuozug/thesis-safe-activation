@@ -520,3 +520,199 @@ py -m experiments.run_ablation --device cpu --hidden-activation gelu --batch-siz
 ### 结论
 
 实验 7 顺利完成。结果表明，GELU 近似配置对模型性能具有显著影响。阶数方面，7 阶取得最佳精度，但 5 阶更均衡；区间方面，较小区间优于过大区间，[-2, 2] 在当前 5 阶条件下取得了最佳测试表现。综合主实验与消融实验结果，本文将 5 阶、区间 [-3, 3] 作为主实验默认配置，同时将 5 阶、区间 [-2, 2] 视为值得进一步优化的方向。
+
+## 实验 5A：Softmax 输出层补充实验（提高阶数）
+
+### 实验目的
+在保持 Softmax 近似方法和逼近区间不变的前提下，将多项式阶数由 3 提高到 5，考察近似 Softmax 的分类准确率、概率分布误差与数值稳定性是否得到改善，验证实验 5 中性能崩塌是否主要由阶数过低导致。
+
+### 运行命令
+```bash
+py -m experiments.eval_softmax --device cpu --checkpoint-path outputs/logs/exp1_baseline/baseline_best.pt --hidden-activation relu --batch-size 256 --num-workers 0 --seed 42 --degree 5 --interval-left -4 --interval-right 4 --method exp_poly_norm --output-dir outputs/logs/exp5a_softmax_deg5
+````
+
+### 配置
+
+* 数据集：MNIST 测试集
+* 基础模型：Baseline CNN
+* checkpoint：outputs/logs/exp1_baseline/baseline_best.pt
+* hidden activation：relu
+* Softmax 近似方法：exp_poly_norm
+* 多项式阶数：5
+* 逼近区间：[-4, 4]
+* batch size：256
+* num_workers：0
+* seed：42
+* device：cpu
+
+### 结果
+
+* exact accuracy：0.9884
+* approx accuracy：0.9884
+* accuracy drop：0.0000
+* probability MAE：0.00109095
+* probability MSE：约 0.00010250
+* probability sum MAE：约 0.00000002
+* is stable：true
+
+### 分析
+
+将多项式阶数由 3 提高到 5 后，近似 Softmax 的分类准确率由实验 5 中的 0.1019 显著恢复到 0.9884，与精确 Softmax 完全一致，说明实验 5 中性能崩塌的主要原因并不是 Softmax 近似整体不可行，而是 3 阶多项式的表达能力明显不足。
+
+同时，probability MAE 仅约为 0.00109，远小于实验 5 中的 0.17957，且概率和误差仍接近 0，说明在 5 阶条件下，近似 Softmax 已能够在保持数值稳定性的同时较好逼近原始概率分布。该结果表明，对于 Softmax 这种复杂结构函数，阶数选择对实际效果具有决定性影响。
+
+### 结论
+
+实验 5A 表明，Softmax 近似并非天然不可用；在当前实现下，将多项式阶数提高到 5 后，近似 Softmax 已可恢复与精确 Softmax 一致的分类准确率，说明实验 5 的失败主要由阶数过低导致。
+
+## 实验 5B：Softmax 输出层补充实验（扩大区间）
+
+### 实验目的
+
+在 5 阶条件下，将 Softmax 近似区间由 [-4, 4] 扩大到 [-6, 6]，考察 logits 截断范围对近似精度与分类结果的影响。
+
+### 运行命令
+
+```bash
+py -m experiments.eval_softmax --device cpu --checkpoint-path outputs/logs/exp1_baseline/baseline_best.pt --hidden-activation relu --batch-size 256 --num-workers 0 --seed 42 --degree 5 --interval-left -6 --interval-right 6 --method exp_poly_norm --output-dir outputs/logs/exp5b_softmax_deg5_wide
+```
+
+### 配置
+
+* 数据集：MNIST 测试集
+* 基础模型：Baseline CNN
+* checkpoint：outputs/logs/exp1_baseline/baseline_best.pt
+* hidden activation：relu
+* Softmax 近似方法：exp_poly_norm
+* 多项式阶数：5
+* 逼近区间：[-6, 6]
+* batch size：256
+* num_workers：0
+* seed：42
+* device：cpu
+
+### 结果
+
+* exact accuracy：0.9884
+* approx accuracy：0.9884
+* accuracy drop：0.0000
+* probability MAE：0.00490429
+* probability MSE：约 0.00161774
+* probability sum MAE：约 0.00000000
+* is stable：true
+
+### 分析
+
+扩大区间后，近似 Softmax 的分类准确率仍与精确 Softmax 完全一致，说明在当前测试集上，5 阶近似已足以保持 top-1 类别预测不变。
+
+但与实验 5A 相比，probability MAE 和 probability MSE 均明显增大，说明虽然类别排序未被破坏，但概率分布本身的逼近质量有所下降。这表明区间扩大并未带来更好的 Softmax 近似效果，反而会降低概率分布层面的拟合精度。
+
+### 结论
+
+实验 5B 表明，在当前 5 阶条件下，扩大区间不会破坏分类准确率，但会增加概率分布误差。因此，对于 Softmax 近似而言，区间并不是越大越好，[-4, 4] 在当前实现下优于 [-6, 6]。
+
+## 实验 5C：Softmax 输出层补充实验（Chebyshev 采样策略）
+
+### 实验目的
+
+在 5 阶、区间 [-6, 6] 的条件下，将 Softmax 近似策略改为 Chebyshev，考察不同采样策略对近似概率分布与分类结果的影响。
+
+### 运行命令
+
+```bash
+py -m experiments.eval_softmax --device cpu --checkpoint-path outputs/logs/exp1_baseline/baseline_best.pt --hidden-activation relu --batch-size 256 --num-workers 0 --seed 42 --degree 5 --interval-left -6 --interval-right 6 --method chebyshev --output-dir outputs/logs/exp5c_softmax_chebyshev
+```
+
+### 配置
+
+* 数据集：MNIST 测试集
+* 基础模型：Baseline CNN
+* checkpoint：outputs/logs/exp1_baseline/baseline_best.pt
+* hidden activation：relu
+* Softmax 近似方法：chebyshev
+* 多项式阶数：5
+* 逼近区间：[-6, 6]
+* batch size：256
+* num_workers：0
+* seed：42
+* device：cpu
+
+### 结果
+
+* exact accuracy：0.9884
+* approx accuracy：0.9884
+* accuracy drop：0.0000
+* probability MAE：0.00463277
+* probability MSE：约 0.00136504
+* probability sum MAE：约 0.00000000
+* is stable：true
+
+### 分析
+
+在保持 5 阶和较宽区间不变的条件下，Chebyshev 策略同样保持了与精确 Softmax 一致的分类准确率，说明在当前配置下，采样策略变化未影响 top-1 分类结果。
+
+从概率误差指标看，Chebyshev 的 MAE 和 MSE 略优于实验 5B 中的 exp_poly_norm，但仍明显劣于实验 5A 的 5 阶、[-4, 4] 配置。这说明 Chebyshev 采样在宽区间下对概率分布逼近有一定改善，但其收益不足以超过更合理区间带来的提升。
+
+### 结论
+
+实验 5C 表明，在 5 阶、[-6, 6] 条件下，Chebyshev 采样策略可以在不影响分类准确率的前提下略微改善概率分布误差，但整体仍不如 5 阶、[-4, 4]、exp_poly_norm 的配置表现更好。
+
+## 实验 5D：Softmax 输出层补充实验（Least Squares 采样策略）
+
+### 实验目的
+
+在 5 阶、区间 [-6, 6] 的条件下，将 Softmax 近似策略改为 least_squares，考察最小二乘采样策略与其他方法的差异。
+
+### 运行命令
+
+```bash
+py -m experiments.eval_softmax --device cpu --checkpoint-path outputs/logs/exp1_baseline/baseline_best.pt --hidden-activation relu --batch-size 256 --num-workers 0 --seed 42 --degree 5 --interval-left -6 --interval-right 6 --method least_squares --output-dir outputs/logs/exp5d_softmax_ls
+```
+
+### 配置
+
+* 数据集：MNIST 测试集
+* 基础模型：Baseline CNN
+* checkpoint：outputs/logs/exp1_baseline/baseline_best.pt
+* hidden activation：relu
+* Softmax 近似方法：least_squares
+* 多项式阶数：5
+* 逼近区间：[-6, 6]
+* batch size：256
+* num_workers：0
+* seed：42
+* device：cpu
+
+### 结果
+
+* exact accuracy：0.9884
+* approx accuracy：0.9884
+* accuracy drop：0.0000
+* probability MAE：0.00490429
+* probability MSE：约 0.00161774
+* probability sum MAE：约 0.00000000
+* is stable：true
+
+### 分析
+
+least_squares 配置下的分类准确率仍与精确 Softmax 完全一致，但其 probability MAE 和 MSE 与实验 5B 基本相同，且略差于实验 5C。这说明在当前实现中，least_squares 并未带来额外优势。
+
+结合实验 5B 与实验 5D 的结果，可以认为在当前 5 阶、[-6, 6] 条件下，least_squares 和 exp_poly_norm 的整体效果非常接近，而 Chebyshev 略优，但三者均不如更合理区间设置下的实验 5A。
+
+### 结论
+
+实验 5D 表明，在当前配置下，least_squares 采样策略能够保持分类准确率，但未表现出优于其他方法的概率逼近效果，因此不是当前 Softmax 近似的最优选择。
+
+## 实验 5 补充实验汇总结论
+
+通过实验 5A–5D 可以得出以下结论：
+
+1. 实验 5 中 Softmax 近似失效的主要原因是多项式阶数过低，而不是 Softmax 近似方案整体不可行。将阶数从 3 提升到 5 后，近似 Softmax 的分类准确率即可恢复到与精确 Softmax 一致的水平。
+
+2. 在 5 阶条件下，Softmax 近似的 top-1 分类结果已经足够稳定，不同配置虽然会带来概率分布误差上的差异，但并未改变最终分类准确率。
+
+3. 区间并不是越大越好。与 [-6, 6] 相比，[-4, 4] 在当前实现下具有更小的概率分布误差，说明较小区间更有利于保持概率逼近质量。
+
+4. 在宽区间条件下，Chebyshev 采样策略的概率误差略优于 least_squares 和 exp_poly_norm，但整体最优配置仍是 5 阶、[-4, 4]、exp_poly_norm。
+
+综合来看，Softmax 近似并非本文中的完全负结果。更准确的结论应为：3 阶配置失败，但当多项式阶数提升到 5 阶后，近似 Softmax 已能够在保持数值稳定性的同时恢复与精确 Softmax 一致的分类准确率。因此，Softmax 近似的关键不在于“是否可行”，而在于“参数配置是否足够合理”。
